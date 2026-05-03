@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Launchboard — Hi-Fi</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: #0d0d14;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Animated bg gradient */
+.bg-scene {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 20% 30%, oklch(0.28 0.08 260) 0%, transparent 60%),
+              radial-gradient(ellipse 70% 60% at 80% 70%, oklch(0.22 0.06 300) 0%, transparent 60%),
+              radial-gradient(ellipse 60% 50% at 50% 50%, oklch(0.16 0.04 230) 0%, transparent 70%),
+              oklch(0.10 0.02 240);
+  z-index: 0;
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.35;
+  animation: floatOrb 12s ease-in-out infinite;
+}
+.bg-orb:nth-child(1) { width: 500px; height: 500px; background: oklch(0.55 0.18 260); top: -100px; left: -80px; animation-delay: 0s; }
+.bg-orb:nth-child(2) { width: 400px; height: 400px; background: oklch(0.50 0.15 300); bottom: -80px; right: -60px; animation-delay: -4s; }
+.bg-orb:nth-child(3) { width: 300px; height: 300px; background: oklch(0.52 0.14 220); bottom: 20%; left: 30%; animation-delay: -8s; }
+
+@keyframes floatOrb {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-30px) scale(1.05); }
+}
+
+/* Main window */
+.lb-window {
+  position: relative;
+  z-index: 1;
+  width: 960px;
+  height: 620px;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: rgba(18, 18, 32, 0.55);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow:
+    0 0 0 0.5px rgba(255,255,255,0.06),
+    0 40px 80px rgba(0,0,0,0.6),
+    0 0 120px rgba(80,100,220,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+}
+
+/* Title bar */
+.lb-titlebar {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: relative;
+}
+.lb-traffic {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.lb-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.lb-dot.close { background: #ff5f57; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.3); }
+.lb-dot.min   { background: #febc2e; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.3); }
+.lb-dot.max   { background: #28c840; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.3); }
+.lb-dot:hover { filter: brightness(1.2); }
+.lb-title {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: -0.01em;
+}
+
+/* Body */
+.lb-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Sidebar */
+.lb-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.03);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+  overflow: hidden;
+}
+
+.lb-sb-section {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.28);
+  padding: 10px 16px 4px;
+}
+
+.lb-sb-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 12px;
+  margin: 1px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 450;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.lb-sb-item:hover {
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.9);
+}
+.lb-sb-item.active {
+  background: rgba(90,130,255,0.22);
+  color: #fff;
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px rgba(90,130,255,0.3);
+}
+
+.lb-sb-icon {
+  width: 20px; height: 20px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.lb-sb-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 8px 12px;
+}
+
+.lb-sb-settings {
+  margin-top: auto;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 6px;
+}
+
+/* Main content */
+.lb-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Top bar */
+.lb-topbar {
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+}
+
+.lb-search {
+  flex: 1;
+  height: 32px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  transition: all 0.2s;
+  cursor: text;
+}
+.lb-search:focus-within,
+.lb-search.active {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(90,130,255,0.5);
+  box-shadow: 0 0 0 3px rgba(90,130,255,0.12);
+}
+.lb-search input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #fff;
+}
+.lb-search input::placeholder { color: rgba(255,255,255,0.3); }
+.lb-search-icon { color: rgba(255,255,255,0.35); font-size: 14px; }
+
+.lb-toggle-group {
+  display: flex;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.lb-toggle-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lb-toggle-btn.active {
+  background: rgba(90,130,255,0.3);
+  color: #fff;
+}
+.lb-toggle-btn:hover:not(.active) { color: rgba(255,255,255,0.7); }
+
+.lb-sort-btn {
+  height: 32px;
+  padding: 0 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  display: flex; align-items: center; gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lb-sort-btn:hover { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.8); }
+
+/* Favorites bar */
+.lb-favbar {
+  height: 84px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.015);
+}
+
+.lb-fav-label {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.22);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  height: 100%;
+  display: flex; align-items: center;
+  padding: 6px 0;
+  margin-right: 4px;
+}
+
+.lb-fav-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 5px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.lb-fav-tile:hover {
+  background: rgba(255,255,255,0.08);
+  transform: translateY(-2px);
+}
+
+.lb-fav-icon {
+  width: 44px; height: 44px;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  position: relative;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.lb-fav-name {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+
+/* Grid */
+.lb-grid-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.lb-grid-area::-webkit-scrollbar { width: 4px; }
+.lb-grid-area::-webkit-scrollbar-track { background: transparent; }
+.lb-grid-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+.lb-grid-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.28);
+  margin-bottom: 12px;
+}
+
+.lb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 6px;
+}
+
+.lb-app-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+.lb-app-tile:hover {
+  background: rgba(255,255,255,0.08);
+  transform: scale(1.05) translateY(-1px);
+}
+.lb-app-tile.selected {
+  background: rgba(90,130,255,0.18);
+  box-shadow: inset 0 0 0 1px rgba(90,130,255,0.35);
+}
+.lb-app-tile.faded { opacity: 0.2; }
+
+.lb-app-icon {
+  width: 56px; height: 56px;
+  border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  position: relative;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25);
+  transition: all 0.18s;
+}
+.lb-app-tile:hover .lb-app-icon {
+  box-shadow: 0 10px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+.lb-app-name {
+  font-size: 11px;
+  font-weight: 450;
+  color: rgba(255,255,255,0.6);
+  text-align: center;
+  line-height: 1.25;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-app-tile:hover .lb-app-name { color: rgba(255,255,255,0.9); }
+
+.lb-badge {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #5a82ff;
+  border: 2px solid #12121f;
+  box-shadow: 0 0 6px rgba(90,130,255,0.6);
+}
+
+/* Glass modal overlay */
+.lb-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50;
+  border-radius: 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.lb-modal {
+  background: rgba(22, 22, 40, 0.85);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 0.5px rgba(255,255,255,0.06),
+    0 40px 80px rgba(0,0,0,0.7),
+    inset 0 1px 0 rgba(255,255,255,0.10);
+  animation: slideUp 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* Buttons */
+.lb-btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(255,255,255,0.12);
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.75);
+}
+.lb-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+.lb-btn.primary {
+  background: oklch(0.55 0.18 260);
+  border-color: oklch(0.60 0.18 260);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(90,130,255,0.35);
+}
+.lb-btn.primary:hover {
+  background: oklch(0.60 0.18 260);
+  box-shadow: 0 4px 18px rgba(90,130,255,0.5);
+  transform: translateY(-1px);
+}
+
+.lb-btn.danger { color: #ff6b6b; border-color: rgba(255,80,80,0.2); }
+.lb-btn.danger:hover { background: rgba(255,80,80,0.12); color: #ff4444; }
+
+/* Kbd */
+.lb-kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 5px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-bottom: 2px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.6);
+  letter-spacing: -0.01em;
+}
+
+/* Breadcrumb */
+.lb-breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  padding: 8px 16px 0;
+  flex-shrink: 0;
+}
+.lb-breadcrumb .parent { color: oklch(0.70 0.14 260); cursor: pointer; }
+.lb-breadcrumb .parent:hover { text-decoration: underline; }
+.lb-breadcrumb .sep { color: rgba(255,255,255,0.25); }
+.lb-breadcrumb .current { color: rgba(255,255,255,0.85); font-weight: 500; }
+.lb-breadcrumb .count { margin-left: auto; color: rgba(255,255,255,0.3); font-size: 11px; }
+
+/* Toggle / Seg Control */
+.lb-seg {
+  display: flex;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+}
+.lb-seg-opt {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.lb-seg-opt.active {
+  background: rgba(90,130,255,0.3);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* Toggle switch */
+.lb-toggle {
+  width: 38px; height: 22px;
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.lb-toggle.on { background: oklch(0.55 0.18 260); }
+.lb-toggle.off { background: rgba(255,255,255,0.14); }
+.lb-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  width: 16px; height: 16px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  transition: left 0.2s cubic-bezier(0.34,1.4,0.64,1);
+}
+.lb-toggle.on .lb-toggle-thumb { left: 19px; }
+.lb-toggle.off .lb-toggle-thumb { left: 3px; }
+
+/* Settings row */
+.lb-setting-row {
+  display: flex; align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  gap: 12px;
+}
+.lb-setting-label { flex: 1; }
+.lb-setting-label .label { font-size: 13px; color: rgba(255,255,255,0.85); font-weight: 450; }
+.lb-setting-label .caption { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+
+.lb-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.28);
+  margin: 16px 0 6px;
+}
+
+/* Select dropdown */
+.lb-select {
+  height: 30px;
+  padding: 0 10px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 7px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  display: flex; align-items: center; gap: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-width: 150px;
+  transition: all 0.15s;
+}
+.lb-select:hover { background: rgba(255,255,255,0.10); }
+
+/* App color palettes */
+.c0 { background: linear-gradient(135deg, #5a82ff, #8b5cf6); }
+.c1 { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+.c2 { background: linear-gradient(135deg, #10b981, #059669); }
+.c3 { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
+.c4 { background: linear-gradient(135deg, #ec4899, #a855f7); }
+.c5 { background: linear-gradient(135deg, #f97316, #eab308); }
+.c6 { background: linear-gradient(135deg, #14b8a6, #0ea5e9); }
+.c7 { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
+.c8 { background: linear-gradient(135deg, #22d3ee, #4ade80); }
+.c9 { background: linear-gradient(135deg, #fb7185, #f43f5e); }
+.c10 { background: linear-gradient(135deg, #a78bfa, #818cf8); }
+.c11 { background: linear-gradient(135deg, #34d399, #059669); }
+.c12 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+.c13 { background: linear-gradient(135deg, #60a5fa, #2563eb); }
+.c14 { background: linear-gradient(135deg, #e879f9, #a21caf); }
+
+/* Nav screen tabs */
+.screen-tabs {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  background: rgba(20,20,36,0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 40px;
+  padding: 6px 10px;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.screen-tab {
+  padding: 5px 14px;
+  border-radius: 30px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.screen-tab.active {
+  background: rgba(90,130,255,0.3);
+  color: #fff;
+}
+.screen-tab:hover:not(.active) { color: rgba(255,255,255,0.7); }
+
+/* Empty state */
+.lb-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 12px;
+  color: rgba(255,255,255,0.2);
+  font-size: 13px;
+  margin: 10px 0;
+  gap: 6px;
+}
+
+/* App Select Modal specifics */
+.asm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+  padding: 2px;
+}
+
+.asm-app {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.asm-app:hover { background: rgba(255,255,255,0.08); }
+.asm-app.checked { background: rgba(90,130,255,0.18); }
+
+.asm-check {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: oklch(0.55 0.18 260);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(90,130,255,0.5);
+}
+
+.asm-category-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+.asm-category-tabs::-webkit-scrollbar { display: none; }
+
+.asm-cat-tab {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: rgba(255,255,255,0.4);
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+}
+.asm-cat-tab.active {
+  background: rgba(90,130,255,0.25);
+  border-color: rgba(90,130,255,0.35);
+  color: #fff;
+}
+.asm-cat-tab:hover:not(.active) { color: rgba(255,255,255,0.7); }
+
+/* Step dots */
+.step-dots {
+  display: flex; gap: 6px; align-items: center;
+  justify-content: center;
+}
+.step-dot {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.15);
+  transition: all 0.3s cubic-bezier(0.34,1.4,0.64,1);
+}
+.step-dot.active {
+  width: 20px;
+  background: oklch(0.55 0.18 260);
+}
+.step-dot:not(.active) { width: 6px; }
+
+/* Shortcut row */
+.lb-shortcut-row {
+  display: flex; align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  gap: 10px;
+}
+.lb-shortcut-row .label { flex: 1; font-size: 13px; color: rgba(255,255,255,0.75); }
+
+/* Slider */
+.lb-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.12);
+  outline: none;
+}
+.lb-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: oklch(0.55 0.18 260);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(90,130,255,0.5);
+}
+
+/* Accent color swatches */
+.lb-swatch {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s;
+  border: 2px solid transparent;
+}
+.lb-swatch:hover { transform: scale(1.2); }
+.lb-swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,0.4); }
+
+/* Hint bar */
+.lb-hint {
+  position: absolute;
+  bottom: 10px;
+  right: 14px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  font-size: 11px;
+  color: rgba(255,255,255,0.28);
+}
+
+/* List view */
+.lb-list-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lb-list-row:hover { background: rgba(255,255,255,0.06); }
+
+/* Conflict banner */
+.lb-conflict {
+  background: rgba(255,70,70,0.10);
+  border: 1px solid rgba(255,70,70,0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #ff8080;
+  display: flex; align-items: center; gap: 8px;
+  margin: 8px 0;
+}
+
+/* Info callout */
+.lb-callout {
+  background: rgba(90,130,255,0.08);
+  border: 1px solid rgba(90,130,255,0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: oklch(0.70 0.14 260);
+  margin: 8px 0;
+}
+
+/* Context menu */
+.lb-ctx-menu {
+  position: absolute;
+  background: rgba(22,22,38,0.92);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 180px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.06);
+  z-index: 200;
+  animation: slideUp 0.15s ease;
+}
+.lb-ctx-item {
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  transition: all 0.1s;
+  display: flex; align-items: center; gap: 8px;
+}
+.lb-ctx-item:hover { background: rgba(90,130,255,0.2); color: #fff; }
+.lb-ctx-item.danger { color: #ff7070; }
+.lb-ctx-item.danger:hover { background: rgba(255,70,70,0.15); }
+.lb-ctx-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 3px 0; }
+
+/* Smart group rule row */
+.lb-rule-row {
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap;
+}
+</style>
+
+<template id="__bundler_thumbnail" data-bg-color="#0d0d14">
+  <svg viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background -->
+    <rect width="960" height="620" fill="#0d0d14"/>
+    <!-- BG orbs -->
+    <ellipse cx="100" cy="120" rx="280" ry="260" fill="oklch(0.28 0.08 260)" opacity="0.35"/>
+    <ellipse cx="860" cy="520" rx="240" ry="220" fill="oklch(0.22 0.06 300)" opacity="0.35"/>
+    <!-- Window -->
+    <rect x="40" y="40" width="880" height="540" rx="16" fill="rgba(18,18,32,0.75)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+    <!-- Title bar -->
+    <rect x="40" y="40" width="880" height="40" rx="16" fill="rgba(255,255,255,0.03)"/>
+    <rect x="40" y="64" width="880" height="16" fill="rgba(255,255,255,0.03)"/>
+    <circle cx="64" cy="60" r="6" fill="#ff5f57"/>
+    <circle cx="82" cy="60" r="6" fill="#febc2e"/>
+    <circle cx="100" cy="60" r="6" fill="#28c840"/>
+    <!-- Sidebar -->
+    <rect x="40" y="80" width="200" height="500" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <rect x="52" y="102" width="100" height="8" rx="4" fill="rgba(255,255,255,0.15)"/>
+    <rect x="52" y="120" width="140" height="22" rx="6" fill="rgba(255,255,255,0.05)"/>
+    <rect x="52" y="148" width="140" height="22" rx="6" fill="rgba(255,255,255,0.05)"/>
+    <rect x="52" y="176" width="140" height="22" rx="6" fill="rgba(90,130,255,0.22)"/>
+    <!-- Sidebar group items -->
+    <rect x="52" y="215" width="80" height="7" rx="3" fill="rgba(255,255,255,0.12)"/>
+    <rect x="52" y="232" width="140" height="20" rx="6" fill="rgba(167,139,250,0.12)"/>
+    <rect x="52" y="258" width="140" height="20" rx="6" fill="rgba(56,189,248,0.10)"/>
+    <rect x="52" y="284" width="140" height="20" rx="6" fill="rgba(251,146,60,0.10)"/>
+    <rect x="52" y="310" width="140" height="20" rx="6" fill="rgba(244,63,94,0.10)"/>
+    <!-- Top bar -->
+    <rect x="240" y="80" width="680" height="52" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <rect x="256" y="96" width="520" height="22" rx="8" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.10)" stroke-width="1"/>
+    <rect x="788" y="96" width="66" height="22" rx="8" fill="rgba(255,255,255,0.06)"/>
+    <rect x="862" y="96" width="50" height="22" rx="8" fill="rgba(255,255,255,0.06)"/>
+    <!-- Fav bar -->
+    <rect x="240" y="132" width="680" height="68" fill="rgba(255,255,255,0.015)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+    <rect x="260" y="148" width="44" height="44" rx="11" fill="url(#g0)"/>
+    <rect x="314" y="148" width="44" height="44" rx="11" fill="url(#g1)"/>
+    <rect x="368" y="148" width="44" height="44" rx="11" fill="url(#g2)"/>
+    <rect x="422" y="148" width="44" height="44" rx="11" fill="url(#g3)"/>
+    <rect x="476" y="148" width="44" height="44" rx="11" fill="url(#g4)"/>
+    <rect x="530" y="148" width="44" height="44" rx="11" fill="url(#g5)"/>
+    <!-- App grid tiles -->
+    <rect x="256" y="216" width="56" height="56" rx="13" fill="url(#g0)"/>
+    <rect x="328" y="216" width="56" height="56" rx="13" fill="url(#g1)"/>
+    <rect x="400" y="216" width="56" height="56" rx="13" fill="url(#g12)"/>
+    <rect x="472" y="216" width="56" height="56" rx="13" fill="url(#g3)"/>
+    <rect x="544" y="216" width="56" height="56" rx="13" fill="url(#g4)"/>
+    <rect x="616" y="216" width="56" height="56" rx="13" fill="url(#g5)"/>
+    <rect x="688" y="216" width="56" height="56" rx="13" fill="url(#g6)"/>
+    <rect x="760" y="216" width="56" height="56" rx="13" fill="url(#g7)"/>
+    <rect x="256" y="292" width="56" height="56" rx="13" fill="url(#g8)"/>
+    <rect x="328" y="292" width="56" height="56" rx="13" fill="url(#g9)"/>
+    <rect x="400" y="292" width="56" height="56" rx="13" fill="url(#g10)"/>
+    <rect x="472" y="292" width="56" height="56" rx="13" fill="url(#g11)"/>
+    <rect x="544" y="292" width="56" height="56" rx="13" fill="url(#g1)"/>
+    <rect x="616" y="292" width="56" height="56" rx="13" fill="url(#g2)"/>
+    <rect x="688" y="292" width="56" height="56" rx="13" fill="url(#g3)"/>
+    <rect x="760" y="292" width="56" height="56" rx="13" fill="url(#g4)"/>
+    <!-- App name labels -->
+    <rect x="260" y="356" width="48" height="7" rx="3" fill="rgba(255,255,255,0.15)"/>
+    <rect x="332" y="356" width="48" height="7" rx="3" fill="rgba(255,255,255,0.15)"/>
+    <rect x="404" y="356" width="48" height="7" rx="3" fill="rgba(255,255,255,0.15)"/>
+    <rect x="476" y="356" width="48" height="7" rx="3" fill="rgba(255,255,255,0.15)"/>
+    <rect x="548" y="356" width="48" height="7" rx="3" fill="rgba(255,255,255,0.15)"/>
+    <rect x="620" y="356" width="48" height="7" rx="3" fill="rgba(255,255,255,0.15)"/>
+    <!-- Gradients -->
+    <defs>
+      <linearGradient id="g0" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#5a82ff"/><stop offset="100%" stop-color="#8b5cf6"/></linearGradient>
+      <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ef4444"/></linearGradient>
+      <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#059669"/></linearGradient>
+      <linearGradient id="g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#06b6d4"/><stop offset="100%" stop-color="#3b82f6"/></linearGradient>
+      <linearGradient id="g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ec4899"/><stop offset="100%" stop-color="#a855f7"/></linearGradient>
+      <linearGradient id="g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f97316"/><stop offset="100%" stop-color="#eab308"/></linearGradient>
+      <linearGradient id="g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#14b8a6"/><stop offset="100%" stop-color="#0ea5e9"/></linearGradient>
+      <linearGradient id="g7" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#ec4899"/></linearGradient>
+      <linearGradient id="g8" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#22d3ee"/><stop offset="100%" stop-color="#4ade80"/></linearGradient>
+      <linearGradient id="g9" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fb7185"/><stop offset="100%" stop-color="#f43f5e"/></linearGradient>
+      <linearGradient id="g10" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#818cf8"/></linearGradient>
+      <linearGradient id="g11" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#059669"/></linearGradient>
+      <linearGradient id="g12" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient>
+    </defs>
+  </svg>
+</template>
+</head>
+<body>
+
+<div class="bg-scene">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+</div>
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ── App data ── */
+const ALL_APPS = [
+  { id:1,  name:"Figma",       icon:"Fi", colorClass:"c0",  category:"Design",        favorite:true,  badge:false },
+  { id:2,  name:"Sketch",      icon:"Sk", colorClass:"c12", category:"Design",        favorite:true,  badge:false },
+  { id:3,  name:"Xcode",       icon:"Xc", colorClass:"c13", category:"Development",   favorite:false, badge:true  },
+  { id:4,  name:"VS Code",     icon:"Vs", colorClass:"c3",  category:"Development",   favorite:true,  badge:true  },
+  { id:5,  name:"Safari",      icon:"Sf", colorClass:"c6",  category:"Utilities",     favorite:true,  badge:false },
+  { id:6,  name:"Spotify",     icon:"Sp", colorClass:"c2",  category:"Media",         favorite:false, badge:false },
+  { id:7,  name:"Slack",       icon:"Sl", colorClass:"c9",  category:"Communication", favorite:false, badge:false },
+  { id:8,  name:"Notion",      icon:"No", colorClass:"c7",  category:"Productivity",  favorite:true,  badge:false },
+  { id:9,  name:"Photoshop",   icon:"Ps", colorClass:"c1",  category:"Design",        favorite:false, badge:false },
+  { id:10, name:"Terminal",    icon:"Tm", colorClass:"c11", category:"Development",   favorite:false, badge:false },
+  { id:11, name:"Affinity",    icon:"Af", colorClass:"c10", category:"Design",        favorite:false, badge:false },
+  { id:12, name:"Illustrator", icon:"Ai", colorClass:"c5",  category:"Design",        favorite:false, badge:false },
+  { id:13, name:"Premiere",    icon:"Pr", colorClass:"c9",  category:"Media",         favorite:false, badge:false },
+  { id:14, name:"Obsidian",    icon:"Ob", colorClass:"c4",  category:"Productivity",  favorite:false, badge:false },
+  { id:15, name:"Tableau",     icon:"Tb", colorClass:"c8",  category:"Productivity",  favorite:false, badge:false },
+  { id:16, name:"Zoom",        icon:"Zp", colorClass:"c3",  category:"Communication", favorite:true,  badge:false },
+  { id:17, name:"Chrome",      icon:"Ch", colorClass:"c1",  category:"Utilities",     favorite:true,  badge:false },
+  { id:18, name:"Miro",        icon:"Mi", colorClass:"c7",  category:"Design",        favorite:false, badge:false },
+  { id:19, name:"GitHub",      icon:"Gh", colorClass:"c11", category:"Development",   favorite:false, badge:false },
+  { id:20, name:"Postgres",    icon:"Pg", colorClass:"c13", category:"Development",   favorite:false, badge:false },
+  { id:21, name:"Webflow",     icon:"Wf", colorClass:"c6",  category:"Design",        favorite:false, badge:true  },
+  { id:22, name:"Linear",      icon:"Ln", colorClass:"c14", category:"Productivity",  favorite:false, badge:false },
+  { id:23, name:"Music",       icon:"Mu", colorClass:"c9",  category:"Media",         favorite:false, badge:false },
+  { id:24, name:"Mail",        icon:"Ma", colorClass:"c3",  category:"Communication", favorite:false, badge:false },
+];
+
+const GROUPS = [
+  { id:"design",   name:"Design",        icon:"✦",  color:"#a78bfa", apps:[1,2,9,11,12,18,21] },
+  { id:"dev",      name:"Development",   icon:"⌥",  color:"#38bdf8", apps:[3,4,10,19,20] },
+  { id:"comms",    name:"Communication", icon:"✉",  color:"#fb923c", apps:[7,16,24] },
+  { id:"media",    name:"Media",         icon:"▶",  color:"#f43f5e", apps:[6,13,23] },
+  { id:"utils",    name:"Utilities",     icon:"⚙",  color:"#94a3b8", apps:[5,17] },
+];
+
+const CATEGORIES = ["All", "Design", "Development", "Communication", "Media", "Productivity", "Utilities"];
+
+/* ── Reusable Glass Icon ── */
+function AppIcon({ app, size = 56, showName = true, badge = false, selected = false, faded = false, onClick, onContextMenu }) {
+  return (
+    <div
+      className={`lb-app-tile${selected ? " selected" : ""}${faded ? " faded" : ""}`}
+      style={{ minWidth: size + 24 }}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+    >
+      <div className={`lb-app-icon ${app.colorClass}`} style={{ width: size, height: size, fontSize: size * 0.38, borderRadius: size * 0.23 }}>
+        {app.icon}
+        {(badge || app.badge) && <div className="lb-badge" />}
+      </div>
+      {showName && <div className="lb-app-name" style={{ fontSize: size < 44 ? 9 : 11 }}>{app.name}</div>}
+    </div>
+  );
+}
+
+/* ── Sidebar ── */
+function Sidebar({ activeNav, onNav, onNewGroup }) {
+  const sidebarGroups = GROUPS;
+  return (
+    <div className="lb-sidebar">
+      <div className="lb-sb-section">Library</div>
+      {[
+        { id:"favorites", label:"Favorites",       icon:"★", color:"#f59e0b" },
+        { id:"recent",    label:"Recently Added",  icon:"↑", color:"#34d399" },
+        { id:"all",       label:"All Apps",        icon:"⊞", color:"#5a82ff" },
+      ].map(item => (
+        <div key={item.id} className={`lb-sb-item${activeNav===item.id?" active":""}`} onClick={() => onNav(item.id)}>
+          <div className="lb-sb-icon" style={{ background: activeNav===item.id ? "rgba(255,255,255,0.15)" : `${item.color}22`, color: item.color }}>
+            {item.icon}
+          </div>
+          {item.label}
+        </div>
+      ))}
+      <div className="lb-sb-divider" />
+      <div className="lb-sb-section">Groups</div>
+      {sidebarGroups.map(g => (
+        <div key={g.id} className={`lb-sb-item${activeNav===g.id?" active":""}`} onClick={() => onNav(g.id)}>
+          <div className="lb-sb-icon" style={{ background: `${g.color}22`, color: g.color }}>{g.icon}</div>
+          {g.name}
+        </div>
+      ))}
+      <div className="lb-sb-item" style={{ color: "rgba(90,130,255,0.8)" }} onClick={onNewGroup}>
+        <div className="lb-sb-icon" style={{ background: "rgba(90,130,255,0.15)", color: "#5a82ff" }}>+</div>
+        Add Group…
+      </div>
+      <div className="lb-sb-settings">
+        <div className="lb-sb-item" onClick={() => onNav("settings")}>
+          <div className="lb-sb-icon" style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.4)" }}>⚙</div>
+          Settings
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Top Bar ── */
+function TopBar({ searchQuery, onSearch, viewMode, onViewMode }) {
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sort, setSort] = useState("A–Z");
+  const sorts = ["A–Z", "Recently Used", "Most Used", "Date Added"];
+  return (
+    <div className="lb-topbar">
+      <div className={`lb-search${searchQuery ? " active" : ""}`}>
+        <span className="lb-search-icon">⌕</span>
+        <input
+          type="text"
+          placeholder="Search apps…"
+          value={searchQuery}
+          onChange={e => onSearch(e.target.value)}
+        />
+        {searchQuery && (
+          <span style={{ color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 13 }} onClick={() => onSearch("")}>✕</span>
+        )}
+      </div>
+      <div className="lb-toggle-group">
+        <div className={`lb-toggle-btn${viewMode==="grid"?" active":""}`} onClick={() => onViewMode("grid")}>⊞</div>
+        <div className={`lb-toggle-btn${viewMode==="list"?" active":""}`} onClick={() => onViewMode("list")}>≡</div>
+      </div>
+      <div style={{ position: "relative" }}>
+        <button className="lb-sort-btn" onClick={() => setSortOpen(o => !o)}>
+          {sort} <span style={{ fontSize: 10 }}>▾</span>
+        </button>
+        {sortOpen && (
+          <div className="lb-ctx-menu" style={{ top: 36, right: 0, minWidth: 160 }}>
+            {sorts.map(s => (
+              <div key={s} className="lb-ctx-item" style={{ fontSize: 12, color: s===sort ? "#fff" : undefined, fontWeight: s===sort ? 600 : undefined }}
+                onClick={() => { setSort(s); setSortOpen(false); }}>
+                {s===sort && <span style={{ color: "#5a82ff" }}>✓</span>} {s}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Favorites Bar ── */
+function FavBar({ apps }) {
+  const favApps = apps.filter(a => a.favorite).slice(0, 12);
+  return (
+    <div className="lb-favbar">
+      <div className="lb-fav-label">Favorites</div>
+      {favApps.map(app => (
+        <div key={app.id} className="lb-fav-tile">
+          <div className={`lb-fav-icon ${app.colorClass}`} style={{ fontSize: 18, borderRadius: 11 }}>
+            {app.icon}
+          </div>
+          <div className="lb-fav-name">{app.name}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── App Grid ── */
+function AppGrid({ apps, viewMode, searchQuery, onSelectApp }) {
+  const [ctxMenu, setCtxMenu] = useState(null);
+  const [hovered, setHovered] = useState(null);
+
+  const handleCtx = useCallback((e, app) => {
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, app });
+  }, []);
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [ctxMenu]);
+
+  const matches = searchQuery
+    ? new Set(apps.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase())).map(a => a.id))
+    : null;
+
+  if (viewMode === "list") {
+    const displayApps = matches ? apps : apps;
+    return (
+      <div className="lb-grid-area">
+        {displayApps.map(app => (
+          <div key={app.id} className="lb-list-row"
+            style={{ opacity: matches && !matches.has(app.id) ? 0.18 : 1 }}
+            onClick={() => onSelectApp(app)}>
+            <div className={`lb-fav-icon ${app.colorClass}`} style={{ width: 36, height: 36, fontSize: 15, borderRadius: 9, flexShrink: 0 }}>
+              {app.icon}
+              {app.badge && <div className="lb-badge" style={{ width: 8, height: 8, top: -2, right: -2 }} />}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)" }}>{app.name}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{app.category}</div>
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>{app.favorite ? "★" : ""}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="lb-grid-area" onClick={() => setCtxMenu(null)}>
+      <div className="lb-grid-label">
+        {searchQuery ? `${matches ? matches.size : apps.length} results` : `${apps.length} apps`}
+      </div>
+      <div className="lb-grid">
+        {apps.map(app => (
+          <AppIcon
+            key={app.id}
+            app={app}
+            faded={matches && !matches.has(app.id)}
+            onClick={() => onSelectApp(app)}
+            onContextMenu={e => handleCtx(e, app)}
+          />
+        ))}
+      </div>
+      {ctxMenu && (
+        <div className="lb-ctx-menu" style={{ position: "fixed", top: ctxMenu.y, left: ctxMenu.x }}>
+          <div className="lb-ctx-item" onClick={() => setCtxMenu(null)}>
+            <span>★</span> Add to Favorites
+          </div>
+          <div className="lb-ctx-item" onClick={() => setCtxMenu(null)}>
+            <span>⊞</span> Add to Group…
+          </div>
+          <div className="lb-ctx-divider" />
+          <div className="lb-ctx-item danger" onClick={() => setCtxMenu(null)}>
+            <span>⊘</span> Hide from Library
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   APP SELECTION MODAL
+   ──────────────────────────────────────────── */
+function AppSelectModal({ onClose, groupName, initialSelected = [], onSave }) {
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
+  const [selected, setSelected] = useState(new Set(initialSelected));
+
+  const filtered = ALL_APPS.filter(a => {
+    const matchCat = category === "All" || a.category === category;
+    const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+
+  const toggle = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  return (
+    <div className="lb-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="lb-modal" style={{ width: 560, padding: 24 }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>
+              Add Applications
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>
+              {groupName || "Select Apps"}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 3 }}>
+              {selected.size} selected
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.4)", fontSize: 13 }}
+          >✕</button>
+        </div>
+
+        {/* Search */}
+        <div className="lb-search" style={{ marginBottom: 12, height: 36 }}>
+          <span className="lb-search-icon">⌕</span>
+          <input
+            type="text"
+            placeholder="Search applications…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoFocus
+            style={{ fontFamily: "Inter, sans-serif" }}
+          />
+        </div>
+
+        {/* Category tabs */}
+        <div className="asm-category-tabs" style={{ marginBottom: 14 }}>
+          {CATEGORIES.map(cat => (
+            <div key={cat} className={`asm-cat-tab${category===cat?" active":""}`} onClick={() => setCategory(cat)}>
+              {cat}
+            </div>
+          ))}
+        </div>
+
+        {/* App grid */}
+        <div className="asm-grid">
+          {filtered.length === 0 && (
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.25)", fontSize: 13 }}>
+              No apps match your search
+            </div>
+          )}
+          {filtered.map(app => (
+            <div key={app.id} className={`asm-app${selected.has(app.id)?" checked":""}`} onClick={() => toggle(app.id)}>
+              <div className={`lb-fav-icon ${app.colorClass}`} style={{ width: 48, height: 48, fontSize: 19, borderRadius: 12 }}>
+                {app.icon}
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 500, color: selected.has(app.id) ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.45)", textAlign: "center", lineHeight: 1.3 }}>
+                {app.name}
+              </div>
+              {selected.has(app.id) && (
+                <div className="asm-check">✓</div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 18, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
+            Click to select · <span className="lb-kbd" style={{ fontSize: 10 }}>Esc</span> to close
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="lb-btn" onClick={onClose}>Cancel</button>
+            <button className="lb-btn primary" onClick={() => { onSave && onSave([...selected]); onClose(); }}>
+              Add {selected.size > 0 ? `${selected.size} App${selected.size > 1 ? "s" : ""}` : "Apps"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   SETUP MODAL (3 steps)
+   ──────────────────────────────────────────── */
+function SetupModal({ onClose }) {
+  const [step, setStep] = useState(0);
+  const [favApps, setFavApps] = useState(new Set([1,4,5,8,16,17]));
+  const [hotkey, setHotkey] = useState("⌥ Space");
+
+  const steps = ["Suggested Groups", "Pin Favorites", "Global Shortcut"];
+
+  return (
+    <div className="lb-overlay">
+      <div className="lb-modal" style={{ width: 560, padding: 28 }}>
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: ["rgba(90,130,255,0.25)","rgba(245,158,11,0.25)","rgba(52,211,153,0.25)"][step],
+            border: `1px solid ${["rgba(90,130,255,0.4)","rgba(245,158,11,0.4)","rgba(52,211,153,0.4)"][step]}`,
+            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20
+          }}>
+            {["⊞","★","⌘"][step]}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.3)", marginBottom: 2 }}>
+              Step {step+1} of 3
+            </div>
+            <div style={{ fontSize: 19, fontWeight: 600, color: "#fff" }}>{steps[step]}</div>
+          </div>
+          <div className="step-dots" style={{ marginLeft: "auto" }}>
+            {[0,1,2].map(i => <div key={i} className={`step-dot${i===step?" active":""}`} />)}
+          </div>
+        </div>
+
+        {/* Step content */}
+        {step === 0 && (
+          <div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16, lineHeight: 1.6 }}>
+              We detected your installed apps and suggested groups. Accept, modify, or skip.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+              {GROUPS.map(g => (
+                <div key={g.id} style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 10, padding: "12px 14px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: 6, background: `${g.color}22`, color: g.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>{g.icon}</div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>{g.name}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.7 }}>
+                    {g.apps.map(id => ALL_APPS.find(a => a.id===id)?.name).join(", ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 1 && (
+          <div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16, lineHeight: 1.6 }}>
+              Your most-used apps will appear in the Favorites bar for quick access. Click to toggle.
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: 16, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 12, marginBottom: 20 }}>
+              {ALL_APPS.slice(0,12).map(app => (
+                <div key={app.id}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, cursor: "pointer", opacity: favApps.has(app.id) ? 1 : 0.35, transition: "all 0.15s" }}
+                  onClick={() => setFavApps(prev => { const n = new Set(prev); n.has(app.id) ? n.delete(app.id) : n.add(app.id); return n; })}>
+                  <div className={`lb-fav-icon ${app.colorClass}`} style={{ width: 44, height: 44, fontSize: 18, borderRadius: 11, position: "relative" }}>
+                    {app.icon}
+                    {favApps.has(app.id) && (
+                      <div style={{ position: "absolute", bottom: -4, right: -4, width: 14, height: 14, borderRadius: "50%", background: "#5a82ff", border: "2px solid #12121f", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, color: "#fff" }}>✓</div>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>{app.name}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.28)", textAlign: "center" }}>{favApps.size} apps selected · max 12</div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20, lineHeight: 1.6 }}>
+              Set a global keyboard shortcut to invoke Launchboard from any app.
+            </p>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: 24, borderRadius: 12, marginBottom: 16,
+              background: "rgba(90,130,255,0.08)",
+              border: "1px solid rgba(90,130,255,0.25)",
+            }}>
+              {["⌥","Space"].map((k,i) => (
+                <React.Fragment key={i}>
+                  <span className="lb-kbd" style={{ fontSize: 16, padding: "8px 16px", height: "auto" }}>{k}</span>
+                  {i < 1 && <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>+</span>}
+                </React.Fragment>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", textAlign: "center", marginBottom: 20 }}>
+              Recording… press your combo now, or keep the default
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button className="lb-btn" style={{ opacity: 0.6 }} onClick={() => step > 0 ? setStep(s => s-1) : onClose()}>
+            {step > 0 ? "← Back" : "Skip"}
+          </button>
+          <button className="lb-btn primary" onClick={() => step < 2 ? setStep(s => s+1) : onClose()}>
+            {step < 2 ? "Continue →" : "Done →"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   SETTINGS SCREENS
+   ──────────────────────────────────────────── */
+function SettingsPane({ onBack }) {
+  const [tab, setTab] = useState("General");
+  const tabs = ["General", "Appearance", "Library", "Shortcuts", "About"];
+
+  function SettingRow({ label, caption, children }) {
+    return (
+      <div className="lb-setting-row">
+        <div className="lb-setting-label">
+          <div className="label">{label}</div>
+          {caption && <div className="caption">{caption}</div>}
+        </div>
+        {children}
+      </div>
+    );
+  }
+
+  function GlassSelect({ value, opts }) {
+    return (
+      <div className="lb-select">
+        {value} <span style={{ marginLeft: "auto", color: "rgba(255,255,255,0.3)", fontSize: 10 }}>▾</span>
+      </div>
+    );
+  }
+
+  function SectionTitle({ children }) {
+    return <div className="lb-section-title">{children}</div>;
+  }
+
+  const swatches = ["oklch(0.55 0.18 260)","oklch(0.55 0.18 145)","oklch(0.58 0.18 45)","oklch(0.55 0.18 15)","oklch(0.55 0.18 310)","oklch(0.55 0.16 185)"];
+  const [accentIdx, setAccentIdx] = useState(0);
+
+  const [toggles, setToggles] = useState({ login: true, menubar: true, showNames: true, reduceMotion: false });
+  const tog = (k) => setToggles(t => ({...t, [k]: !t[k]}));
+
+  return (
+    <div className="lb-main" style={{ position: "relative" }}>
+      <div className="lb-topbar" style={{ gap: 14 }}>
+        <button className="lb-btn" style={{ padding: "5px 12px", fontSize: 12 }} onClick={onBack}>← Back</button>
+        <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.8)" }}>Settings</span>
+      </div>
+
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+        {/* Settings sidebar */}
+        <div style={{ width: 160, borderRight: "1px solid rgba(255,255,255,0.06)", padding: "10px 0", flexShrink: 0 }}>
+          {tabs.map(t => (
+            <div key={t} className={`lb-sb-item${tab===t?" active":""}`} onClick={() => setTab(t)} style={{ margin: "1px 6px" }}>
+              {t}
+            </div>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
+
+          {tab === "General" && (
+            <div>
+              <SectionTitle>Startup</SectionTitle>
+              <SettingRow label="Launch at login" caption="Start Launchboard when you log in">
+                <div className={`lb-toggle${toggles.login?" on":" off"}`} onClick={() => tog("login")}><div className="lb-toggle-thumb"/></div>
+              </SettingRow>
+              <SettingRow label="Show menu bar icon" caption="Quick access from the menu bar">
+                <div className={`lb-toggle${toggles.menubar?" on":" off"}`} onClick={() => tog("menubar")}><div className="lb-toggle-thumb"/></div>
+              </SettingRow>
+              <SectionTitle>Library</SectionTitle>
+              <SettingRow label='"Recently Added" timeframe' caption="Apps newer than this appear in Recently Added">
+                <div className="lb-seg">
+                  {["7d","14d","30d"].map(o => <div key={o} className={`lb-seg-opt${o==="14d"?" active":""}`}>{o}</div>)}
+                </div>
+              </SettingRow>
+              <SectionTitle>Defaults</SectionTitle>
+              <SettingRow label="Default view">
+                <div className="lb-seg">
+                  {["Grid","List"].map(o => <div key={o} className={`lb-seg-opt${o==="Grid"?" active":""}`}>{o}</div>)}
+                </div>
+              </SettingRow>
+              <SettingRow label="Default sort">
+                <GlassSelect value="Alphabetical" opts={["Alphabetical","Recently Used","Most Used"]}/>
+              </SettingRow>
+            </div>
+          )}
+
+          {tab === "Appearance" && (
+            <div>
+              <SectionTitle>Theme</SectionTitle>
+              <SettingRow label="Theme">
+                <div className="lb-seg">
+                  {["Auto","Light","Dark"].map(o => <div key={o} className={`lb-seg-opt${o==="Dark"?" active":""}`}>{o}</div>)}
+                </div>
+              </SettingRow>
+              <SectionTitle>Accent Color</SectionTitle>
+              <SettingRow label="Accent color" caption="Selected states, badges, highlights">
+                <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+                  {swatches.map((c,i) => (
+                    <div key={i} className={`lb-swatch${accentIdx===i?" selected":""}`}
+                      style={{ background: c }}
+                      onClick={() => setAccentIdx(i)}/>
+                  ))}
+                </div>
+              </SettingRow>
+              <SectionTitle>Icons</SectionTitle>
+              <SettingRow label="Icon size" caption="Small → Medium → Large">
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>S</span>
+                  <input type="range" min={40} max={80} defaultValue={56} className="lb-slider"/>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>L</span>
+                </div>
+              </SettingRow>
+              <SettingRow label="Show app names under icons">
+                <div className={`lb-toggle${toggles.showNames?" on":" off"}`} onClick={() => tog("showNames")}><div className="lb-toggle-thumb"/></div>
+              </SettingRow>
+              <SectionTitle>Motion</SectionTitle>
+              <SettingRow label="Reduce motion" caption="Disables scale animations">
+                <div className={`lb-toggle${toggles.reduceMotion?" on":" off"}`} onClick={() => tog("reduceMotion")}><div className="lb-toggle-thumb"/></div>
+              </SettingRow>
+            </div>
+          )}
+
+          {tab === "Library" && (
+            <div>
+              <SectionTitle>Scan Locations</SectionTitle>
+              {["/Applications","/Users/you/Applications"].map((p,i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.7)", fontFamily: "monospace" }}>{p}</div>
+                  <button className="lb-btn danger" style={{ padding: "4px 10px", fontSize: 11 }}>Remove</button>
+                </div>
+              ))}
+              <button className="lb-btn" style={{ marginTop: 12, fontSize: 12 }}>+ Add Location…</button>
+              <div className="lb-callout" style={{ marginTop: 14 }}>
+                💡 Apps installed via Homebrew Cask can be added manually above.
+              </div>
+              <SectionTitle>Hidden Apps</SectionTitle>
+              {["Fax","Chess","DVD Player"].map((app,i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 7, background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "rgba(255,255,255,0.4)" }}>{app[0]}</div>
+                  <div style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{app}</div>
+                  <button className="lb-btn" style={{ padding: "4px 10px", fontSize: 11, color: "rgba(90,130,255,0.8)" }}>Restore</button>
+                </div>
+              ))}
+              <SectionTitle>Rescan</SectionTitle>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <button className="lb-btn primary" style={{ fontSize: 12 }}>↻ Rescan Now</button>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.28)" }}>Last scan: Today at 9:42 AM</span>
+              </div>
+            </div>
+          )}
+
+          {tab === "Shortcuts" && (
+            <div>
+              <SectionTitle>Global</SectionTitle>
+              <div className="lb-setting-row">
+                <div className="lb-setting-label">
+                  <div className="label">Invoke Launchboard</div>
+                  <div className="caption">Works from any app</div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: 4, padding: "4px 10px", borderRadius: 8, background: "rgba(90,130,255,0.12)", border: "1px solid rgba(90,130,255,0.3)" }}>
+                    <span className="lb-kbd">⌥</span>
+                    <span className="lb-kbd">Space</span>
+                  </div>
+                  <button className="lb-btn" style={{ fontSize: 11, padding: "4px 10px" }}>Record</button>
+                </div>
+              </div>
+              <SectionTitle>In-App Actions</SectionTitle>
+              {[
+                { label: "New Group",          keys: ["⌘","N"] },
+                { label: "Add to Favorites",   keys: ["⌘","D"] },
+                { label: "Toggle Grid / List", keys: ["⌘","\\"] },
+                { label: "Focus Search",       keys: ["⌘","F"] },
+                { label: "Close / Dismiss",    keys: ["Esc"] },
+                { label: "Navigate Grid",      keys: ["↑","↓","←","→"] },
+                { label: "Launch App",         keys: ["↵"] },
+              ].map(({ label, keys }) => (
+                <div key={label} className="lb-shortcut-row">
+                  <div className="label">{label}</div>
+                  <div style={{ display: "flex", gap: 3 }}>
+                    {keys.map((k,i) => <span key={i} className="lb-kbd">{k}</span>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === "About" && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 16, paddingTop: 40 }}>
+              <div style={{ width: 72, height: 72, borderRadius: 18, background: "linear-gradient(135deg, #5a82ff, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, boxShadow: "0 10px 30px rgba(90,130,255,0.4), inset 0 1px 0 rgba(255,255,255,0.2)" }}>⊞</div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", marginBottom: 4 }}>Launchboard</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)" }}>Version 1.0.0 (Build 100)</div>
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", textAlign: "center", maxWidth: 280, lineHeight: 1.7 }}>
+                Your unified app launcher for macOS. Organize, search, and launch apps without friction.
+              </div>
+              <button className="lb-btn" style={{ marginTop: 8 }}>Check for Updates</button>
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 24 }}>
+            <button className="lb-btn" onClick={onBack}>Cancel</button>
+            <button className="lb-btn primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────
+   MAIN APP
+   ──────────────────────────────────────────── */
+function App() {
+  const [activeNav, setActiveNav] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState("grid");
+  const [modal, setModal] = useState(null); // "setup" | "appselect" | null
+  const [screen, setScreen] = useState("main"); // "main" | "settings"
+  const [appSelectCtx, setAppSelectCtx] = useState(null);
+
+  // Compute displayed apps
+  const displayApps = (() => {
+    if (activeNav === "all" || activeNav === "recent") return ALL_APPS;
+    if (activeNav === "favorites") return ALL_APPS.filter(a => a.favorite);
+    const grp = GROUPS.find(g => g.id === activeNav);
+    if (grp) return ALL_APPS.filter(a => grp.apps.includes(a.id));
+    return ALL_APPS;
+  })();
+
+  const activeGroup = GROUPS.find(g => g.id === activeNav);
+
+  const openAppSelect = (ctx) => {
+    setAppSelectCtx(ctx);
+    setModal("appselect");
+  };
+
+  const handleNav = (id) => {
+    if (id === "settings") { setScreen("settings"); return; }
+    setActiveNav(id);
+    setSearchQuery("");
+  };
+
+  const screens = [
+    { id:"main",     label:"Home" },
+    { id:"setup",    label:"Setup" },
+    { id:"settings", label:"Settings" },
+  ];
+
+  return (
+    <div style={{ position: "relative" }}>
+      {/* Main window */}
+      <div className="lb-window">
+        <div className="lb-titlebar">
+          <div className="lb-traffic">
+            <div className="lb-dot close" />
+            <div className="lb-dot min" />
+            <div className="lb-dot max" />
+          </div>
+          <div className="lb-title">Launchboard</div>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+            <span className="lb-kbd" style={{ fontSize: 10 }}>⌥</span>
+            <span className="lb-kbd" style={{ fontSize: 10 }}>Space</span>
+          </div>
+        </div>
+
+        <div className="lb-body">
+          <Sidebar
+            activeNav={activeNav}
+            onNav={handleNav}
+            onNewGroup={() => openAppSelect({ mode: "newgroup" })}
+          />
+
+          {screen === "settings" ? (
+            <SettingsPane onBack={() => setScreen("main")} />
+          ) : (
+            <div className="lb-main">
+              <TopBar
+                searchQuery={searchQuery}
+                onSearch={setSearchQuery}
+                viewMode={viewMode}
+                onViewMode={setViewMode}
+              />
+
+              <FavBar apps={ALL_APPS} />
+
+              {activeGroup && (
+                <div className="lb-breadcrumb">
+                  <span className="parent" onClick={() => setActiveNav("all")}>All Apps</span>
+                  <span className="sep">›</span>
+                  <span style={{ color: activeGroup.color, fontSize: 13 }}>{activeGroup.icon}</span>
+                  <span className="current">{activeGroup.name}</span>
+                  <span className="count">{displayApps.length} apps</span>
+                  <button className="lb-btn"
+                    style={{ marginLeft: 12, padding: "3px 10px", fontSize: 11 }}
+                    onClick={() => openAppSelect({ mode: "addtogroup", group: activeGroup })}>
+                    + Add Apps
+                  </button>
+                </div>
+              )}
+
+              <AppGrid
+                apps={displayApps}
+                viewMode={viewMode}
+                searchQuery={searchQuery}
+                onSelectApp={app => openAppSelect({ mode: "appdetail", app })}
+              />
+
+              <div className="lb-hint">
+                <span className="lb-kbd">⌘</span><span className="lb-kbd">F</span>
+                <span style={{ marginLeft: 4 }}>search</span>
+                <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
+                <span className="lb-kbd">↵</span>
+                <span style={{ marginLeft: 4 }}>launch</span>
+              </div>
+            </div>
+          )}
+
+          {/* Modals */}
+          {modal === "setup" && (
+            <SetupModal onClose={() => setModal(null)} />
+          )}
+
+          {modal === "appselect" && (
+            <AppSelectModal
+              groupName={
+                appSelectCtx?.mode === "newgroup" ? "New Group" :
+                appSelectCtx?.mode === "addtogroup" ? `Add to ${appSelectCtx.group.name}` :
+                appSelectCtx?.app?.name || "Select Apps"
+              }
+              initialSelected={appSelectCtx?.group?.apps || []}
+              onClose={() => setModal(null)}
+              onSave={(ids) => console.log("Saved selection:", ids)}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Screen navigation pill */}
+      <div className="screen-tabs">
+        {screens.map(s => (
+          <div key={s.id}
+            className={`screen-tab${(s.id==="main"&&screen==="main"&&modal!=="setup")||(s.id==="setup"&&modal==="setup")||(s.id==="settings"&&screen==="settings")?" active":""}`}
+            onClick={() => {
+              if (s.id === "setup") { setScreen("main"); setModal("setup"); }
+              else { setModal(null); setScreen(s.id); if (s.id==="main") setActiveNav("all"); }
+            }}>
+            {s.label}
+          </div>
+        ))}
+        <div className="screen-tab" onClick={() => openAppSelect({ mode: "newgroup" })}>+ App Select</div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
