@@ -45,6 +45,12 @@ struct MainWindowView: View {
                         .transition(.opacity)
                     }
                 }
+
+                Rectangle()
+                    .fill(LB.borderSubtle)
+                    .frame(height: 1)
+
+                BottomTabBar()
             }
             .clipShape(RoundedRectangle(cornerRadius: LB.radius2XL))
 
@@ -52,7 +58,7 @@ struct MainWindowView: View {
             AppSelectModalOverlay()
             SetupModalOverlay()
         }
-        .frame(width: 960, height: 620)
+        .frame(width: 960, height: 668)
         .preferredColorScheme(.dark)
         .onAppear {
             library.checkFirstLaunch()
@@ -69,6 +75,74 @@ struct MainWindowView: View {
         } message: { app in
             Text("\u{201C}\(app.name)\u{201D} could not be found on this Mac.\nCheck that it is installed and try again.")
         }
+    }
+}
+
+// MARK: – Bottom tab bar
+
+private struct BottomTabBar: View {
+    @Environment(LibraryViewModel.self) private var library
+
+    var body: some View {
+        HStack(spacing: LB.spaceXS) {
+            tab(label: "Home", isActive: !library.showSettings) {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    library.showSettings = false
+                    library.selectedSidebarItem = .allApps
+                }
+            }
+            tab(label: "Setup", isActive: library.showSetupModal) {
+                library.showSettings = false
+                library.showSetupModal = true
+            }
+            tab(label: "Settings", isActive: library.showSettings) {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    library.showSettings = true
+                }
+            }
+            tab(label: "+ App Select",
+                isActive: library.showAppSelectModal,
+                isAction: true) {
+                library.showSettings = false
+                library.showAppSelectModal = true
+            }
+        }
+        .padding(.horizontal, LB.spaceLG)
+        .frame(height: 48)
+        .background(Color.white.opacity(0.015))
+    }
+
+    @ViewBuilder
+    private func tab(
+        label: String,
+        isActive: Bool,
+        isAction: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 12, weight: isActive ? .semibold : .medium))
+                .foregroundStyle(
+                    isActive   ? LB.textPrimary :
+                    isAction   ? LB.accent       :
+                                 LB.textTertiary
+                )
+                .padding(.horizontal, LB.spaceMD)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(isActive ? Color.white.opacity(0.10) : Color.clear)
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(
+                                    isActive ? LB.borderMid : Color.clear,
+                                    lineWidth: 1
+                                )
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isActive)
     }
 }
 

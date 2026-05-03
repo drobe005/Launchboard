@@ -15,7 +15,7 @@ struct LaunchboardApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
-        .defaultSize(width: 960, height: 620)
+        .defaultSize(width: 960, height: 668)
         .commands {
             // Remove default File/Edit/Help items that don't apply
             CommandGroup(replacing: .newItem) {}
@@ -76,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.backgroundColor = .clear
         window.hasShadow = true
         window.styleMask.insert(.fullSizeContentView)
-        window.minSize = NSSize(width: 800, height: 500)
+        window.minSize = NSSize(width: 800, height: 548)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
