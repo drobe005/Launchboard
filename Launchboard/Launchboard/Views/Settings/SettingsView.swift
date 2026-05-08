@@ -1,4 +1,5 @@
 import SwiftUI
+import KeyboardShortcuts
 
 // MARK: – Root
 
@@ -412,12 +413,7 @@ private struct LibraryTab: View {
 // MARK: – Shortcuts Tab
 
 private struct ShortcutsTab: View {
-    @Environment(LibraryViewModel.self) private var library
-    @State private var isRecording = false
-
     var body: some View {
-        @Bindable var library = library
-
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Global Shortcut")
 
@@ -425,40 +421,7 @@ private struct ShortcutsTab: View {
                 label: "Show / hide Launchboard",
                 caption: "Works system-wide, even when another app is focused"
             ) {
-                HStack(spacing: LB.spaceSM) {
-                    KbdChip(label: library.settings.globalShortcut)
-                    Button(isRecording ? "Recording\u{2026}" : "Record") {
-                        withAnimation { isRecording = true }
-                        // Full wiring in Step 14 (HotkeyService)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                            withAnimation { isRecording = false }
-                        }
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .disabled(isRecording)
-                }
-            }
-
-            // Conflict banner — shown when another app owns the shortcut
-            if isRecording {
-                HStack(spacing: LB.spaceSM) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(LB.warning)
-                        .font(.system(size: 13))
-                    Text("Press your desired key combination now. Press Esc to cancel.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(LB.textSecondary)
-                }
-                .padding(LB.spaceMD)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: LB.radiusLG)
-                        .fill(LB.warning.opacity(0.10))
-                        .overlay(RoundedRectangle(cornerRadius: LB.radiusLG)
-                            .strokeBorder(LB.warning.opacity(0.30), lineWidth: 1))
-                )
-                .padding(.vertical, LB.spaceSM)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                KeyboardShortcuts.Recorder("", name: .toggleLaunchboard)
             }
 
             sectionHeader("In-App Shortcuts")
